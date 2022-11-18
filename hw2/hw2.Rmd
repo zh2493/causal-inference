@@ -1,0 +1,171 @@
+---
+title: "hw2"
+author: "ZiqianHe"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(ri2)
+library(perm)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+data=fread("D:/columbia/term3/casual/P8122/HW2/light.csv")
+```
+
+# 1
+Plot the outcome by treatment group
+
+*outcome:BMGain
+
+*treatment group:Light(DM=dim, LD=dark, LL=bright)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+ggplot(data,aes(x=Light,y=BMGain,fill=Light))+geom_boxplot()+theme_bw()
+ggplot(data,aes(x=Light,y=BMGain,color=Light))+geom_point()+theme_bw()
+```
+*Different groups have different outcome. The median body mass gain in the LL group is the highest, and LD group is the lowest. The median body mass gain in the DM and LL are similar but overall LD group is lower than DM group.
+
+# 2
+compare the mice exposed to darkness to the mice exposed to bright light overnight. Subset the data to only consider these two groups.
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+dm_ll <- data[Light %in% c("LD","LL")]
+dm_ll %>% arrange(Light) %>% knitr::kable()
+```
+
+*In total, 17 observations. 9 in the bright light group and 8 in the darkness group.
+
+# 3
+set up the data such that everything you will need has generic names (such as Yobs or whatever you want to call them). 
+```{r}
+dm_ll_generic<-dm_ll %>% rename(Y_obs= BMGain, A = Light) %>%arrange(A) %>%  mutate(A=ifelse(A=="LL",1,0))
+Y_obs = dm_ll_generic$Y_obs
+A=dm_ll_generic$A
+```
+*Y_obsThe is outcome of BMGain and A is the treatment assignment of Light (light = 1 and dark = 0).
+
+# 4
+Suppose we want the statistic to be the difference in means between the two treatment groups. Calculate Tobs.
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+T_obs=mean(Y_obs[A==1])-mean(Y_obs[A==0])
+```
+
+*The difference in means between the Two treatment groups, $T_{obs}$, is `r T_obs`.
+
+# 5
+How many different possibilities are there for A? Enumerate all of these possibilities in a matrix.
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+A_poss = chooseMatrix(17,9)
+A_poss = t(A_poss)
+A_poss[,1:5]
+```
+
+*In total there are 17 subjects so we have `r ncol(A_poss)` and above is 5 of them.
+
+
+# 6
+
+State the sharp null hypothesis of no difference.  Calculate the test statistic under one of these possibilities for A (the first one), under the sharp null hypothesis.
+
+*Sharp null hypothesis: there is no treatment effect, so the vector of observed outcomes Y dose not change with different A. $H_0: \tau_i = Y_{0i} - Y_{1i} = 0$
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+A_6=A_poss[,1]
+T_6=mean(Y_obs[A_6==1])-mean(Y_obs[A_6==0])
+```
+
+*The test statistic under one of these probabilities for A (the first one), under the sharp null hypothesis is `r T_6`
+
+
+# 7
+Generate the exact randomization distribution for T, under the sharp null hypothesis of no difference.
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+rdist <- rep(NA, times = ncol(A_poss)) 
+#run a for loop through each randomization scenario and calculate the corresponding test statistic, then  
+for (i in 1:ncol(A_poss)) {
+  A_tilde <- A_poss[, i]
+  rdist[i] <- mean(Y_obs[A_tilde == 1]) - mean(Y_obs[A_tilde == 0])
+}
+rdist[1:20]
+```
+
+*Above are the first 20 values of T, under the sharp null hypothesis. 
+
+# 8
+Plot this distribution, and mark the observed test statistic.
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+pval <- mean(rdist >= T_obs)
+quant <- quantile(rdist,probs = 1-pval)
+hist(rdist,xlab="T",main="the exact randomization distribution for T,\nunder the sharp null hypothesis of no difference")
+abline(v = quant,col="red")
+```
+
+# 9
+Calculate the exact p-value, based on this distribution
+
+*The exact p-value, based on this distribution is `r pval`.
+
+# 10
+
+What do you conclude?
+
+* Our observed test statistic is extreme in the exact randomization distribution for T. The p-value < 0.05, so we can reject the sharp null hypothesis and conclude that there is an individual effect of treatment group of bright light VS darkness on body mass gain in mice.
+
+
+
+## code
+```{r results='hide',eval = FALSE}
+#load data
+data=fread("D:/columbia/term3/casual/P8122/HW2/light.csv")
+
+#1
+ggplot(data,aes(x=Light,y=BMGain,fill=Light))+geom_boxplot()+theme_bw()
+ggplot(data,aes(x=Light,y=BMGain,color=Light))+geom_point()+theme_bw()
+
+#2
+dm_ll <- data[Light %in% c("DM","LL")]
+dm_ll %>% arrange(Light) %>% knitr::kable()
+
+#3
+dm_ll_generic<-dm_ll %>% rename(Y_obs= BMGain, A = Light) %>%arrange(A) %>%  mutate(A=ifelse(A=="LL",1,0))
+Y_obs = dm_ll_generic$Y_obs
+A=dm_ll_generic$A
+
+#4
+T_obs=mean(Y_obs[A==1])-mean(Y_obs[A==0])
+
+#5
+A_poss = chooseMatrix(19,9)
+A_poss = t(A_poss)
+A_poss[,1:5]
+
+#6
+A_6=A_poss[,1]
+T_6=mean(Y_obs[A_6==1])-mean(Y_obs[A_6==0])
+
+#7
+rdist <- rep(NA, times = ncol(A_poss)) 
+#run a for loop through each randomization scenario and calculate the corresponding test statistic, then  
+for (i in 1:ncol(A_poss)) {
+  A_tilde <- A_poss[, i]
+  rdist[i] <- mean(Y_obs[A_tilde == 1]) - mean(Y_obs[A_tilde == 0])
+}
+rdist[1:20]
+
+#8
+pval <- mean(rdist >= T_obs)
+quant <- quantile(rdist,probs = 1-pval)
+hist(rdist,xlab="T",main="the exact randomization distribution for T,\nunder the sharp null hypothesis of no difference")
+abline(v = quant,col="red")
+
+#9
+pval <- mean(rdist >= T_obs)
+pval
+
+```
+
